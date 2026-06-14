@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学生成绩数据可视化分析系统</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
+  <style>
+    /* ============ Reset & Global ============ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --header-bg: #01547D;
+      --header-height: 60px;
+      --sidebar-width: 200px;
+      --sidebar-bg: #304156;
+      --sidebar-text: #bfcbd9;
+      --sidebar-active: #409EFF;
+      --main-bg: #f5f7fa;
+      --card-bg: #ffffff;
+      --text-primary: #303133;
+    }
+
+    html, body { height: 100%; font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: var(--text-primary); background: var(--main-bg); }
+
+    a { text-decoration: none; color: inherit; }
+
+    /* ============ Header ============ */
+    .app-header {
+      height: var(--header-height); background: var(--header-bg); color: #fff;
+      display: flex; align-items: center; padding: 0 24px; font-size: 18px;
+      font-weight: 600; letter-spacing: 1px; flex-shrink: 0;
+      box-shadow: 0 1px 4px rgba(0,0,0,.15); position: relative; z-index: 10;
+    }
+    .app-header .icon { margin-right: 10px; font-size: 22px; }
+
+    /* ============ Layout ============ */
+    .app-body { display: flex; height: calc(100vh - var(--header-height)); }
+
+    /* ============ Sidebar ============ */
+    .sidebar {
+      width: var(--sidebar-width); background: var(--sidebar-bg); flex-shrink: 0;
+      overflow-y: auto; padding-top: 8px; user-select: none;
+    }
+    .sidebar .nav-group {
+      padding: 16px 20px 6px; font-size: 12px; color: #6b7b8d;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .sidebar .nav-item {
+      display: block; padding: 12px 20px 12px 28px; color: var(--sidebar-text);
+      cursor: pointer; transition: all .2s; border-left: 3px solid transparent;
+      font-size: 14px;
+    }
+    .sidebar .nav-item:hover { background: rgba(255,255,255,.05); color: #fff; }
+    .sidebar .nav-item.active {
+      color: var(--sidebar-active); background: rgba(64,158,255,.1);
+      border-left-color: var(--sidebar-active);
+    }
+
+    /* ============ Main Content ============ */
+    .main-content { flex: 1; overflow-y: auto; padding: 20px; background: var(--main-bg); }
+
+    /* Page container */
+    .page { display: none; }
+    .page.active { display: flex; flex-wrap: wrap; gap: 20px; align-content: flex-start; }
+
+    /* ============ Card ============ */
+    .card {
+      background: var(--card-bg); border-radius: 6px; padding: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08); flex: 1 1 480px;
+      min-width: 420px; max-width: 820px;
+    }
+    .card .chart { width: 100%; }
+    .card .chart-h380 { height: 380px; }
+    .card .chart-h320 { height: 320px; }
+
+    /* ============ Scrollbar ============ */
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 2px; }
+
+    /* ============ Responsive ============ */
+    @media (max-width: 768px) {
+      .app-body { flex-direction: column; }
+      .sidebar {
+        width: 100%; height: auto; display: flex; overflow-x: auto;
+        padding: 0; flex-shrink: 0;
+      }
+      .sidebar .nav-group { display: none; }
+      .sidebar .nav-item {
+        flex-shrink: 0; border-left: none; border-bottom: 3px solid transparent;
+        padding: 10px 16px; white-space: nowrap;
+      }
+      .sidebar .nav-item.active { border-left: none; border-bottom-color: var(--sidebar-active); }
+      .main-content { padding: 12px; }
+      .card { flex: 1 1 100%; min-width: 0; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== Header ==================== -->
+  <header class="app-header">
+    <span class="icon">✨</span> 学生成绩数据可视化分析系统
+  </header>
+
+  <!-- ==================== Body ==================== -->
+  <div class="app-body">
+
+    <!-- ========== Sidebar ========== -->
+    <aside class="sidebar">
+      <div class="nav-group">成绩洞察</div>
+      <a class="nav-item active" data-page="overview">班级概览</a>
+      <div class="nav-group">分析看板</div>
+      <a class="nav-item" data-page="trend">趋势与结构</a>
+      <a class="nav-item" data-page="assessment">综合评估</a>
+    </aside>
+
+    <!-- ========== Main Content ========== -->
+    <main class="main-content">
+
+      <!-- ===== Page 1: 班级概览 ===== -->
+      <div class="page active" id="page-overview">
+        <div class="card">
+          <div class="chart chart-h380" id="chart-classAvg"></div>
+        </div>
+        <div class="card">
+          <div class="chart chart-h380" id="chart-gradeStack"></div>
+        </div>
+        <div class="card">
+          <div class="chart chart-h320" id="chart-gradeDonut"></div>
+        </div>
+      </div>
+
+      <!-- ===== Page 2: 趋势与结构 ===== -->
+      <div class="page" id="page-trend">
+        <div class="card">
+          <div class="chart chart-h380" id="chart-studentTrend"></div>
+        </div>
+        <div class="card">
+          <div class="chart chart-h380" id="chart-genderRatio"></div>
+        </div>
+      </div>
+
+      <!-- ===== Page 3: 综合评估 ===== -->
+      <div class="page" id="page-assessment">
+        <div class="card">
+          <div class="chart chart-h320" id="chart-passGauge"></div>
+        </div>
+        <div class="card">
+          <div class="chart chart-h380" id="chart-subjectAvg"></div>
+        </div>
+        <div class="card">
+          <div class="chart chart-h380" id="chart-abilityRadar"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ==================== Scripts ==================== -->
+  <script>
+  (function() {
+    'use strict';
+
+    // ================================================================
+    //  Chart registry — store all instances for resize on tab switch
+    // ================================================================
+    var charts = {};
+
+    function initChart(id, option) {
+      var dom = document.getElementById(id);
+      if (!dom) return null;
+      var instance = echarts.init(dom, null, { renderer: 'svg' });
+      instance.setOption(option);
+      charts[id] = instance;
+      return instance;
+    }
+
+    // ================================================================
+    //  Navigation — tab switching
+    // ================================================================
+    var navItems = document.querySelectorAll('.sidebar .nav-item');
+    var pages = document.querySelectorAll('.page');
+
+    function switchPage(target) {
+      // Update nav active
+      navItems.forEach(function(item) {
+        item.classList.toggle('active', item.dataset.page === target);
+      });
+      // Show/hide pages
+      pages.forEach(function(page) {
+        var isTarget = page.id === 'page-' + target;
+        page.classList.toggle('active', isTarget);
+      });
+      // Resize charts in the newly visible page
+      setTimeout(function() {
+        Object.keys(charts).forEach(function(key) {
+          if (charts[key] && !charts[key].isDisposed()) {
+            charts[key].resize();
+          }
+        });
+      }, 50);
+    }
+
+    navItems.forEach(function(item) {
+      item.addEventListener('click', function() {
+        switchPage(item.dataset.page);
+      });
+    });
+
+    // ================================================================
+    //  Chart 1 — 各班平均分对比 (柱状图)
+    // ================================================================
+    initChart('chart-classAvg', {
+      title: { text: '各班平均分对比（期中考试）', left: 'center' },
+      tooltip: { trigger: 'axis' },
+      xAxis: {
+        type: 'category',
+        data: ['高一(1)班','高一(2)班','高一(3)班','高一(4)班','高一(5)班'],
+        name: '班级', nameLocation: 'center', nameGap: 28,
+        axisLabel: { interval: 0, rotate: 15 },
+        axisLine: { lineStyle: { color: '#333' } }
+      },
+      yAxis: {
+        type: 'value', name: '平均分', nameLocation: 'center', nameGap: 42,
+        min: 60, max: 90,
+        axisLine: { lineStyle: { color: '#333' } },
+        splitLine: { lineStyle: { color: '#e0e0e0', width: 0.5 } }
+      },
+      grid: { top: '18%', bottom: '12%', left: '8%', right: '5%' },
+      series: [{
+        name: '平均分', type: 'bar', barWidth: 30,
+        data: [78.6, 82.1, 76.4, 85.3, 80.8],
+        label: { show: true, position: 'top', formatter: '{c}' },
+        itemStyle: { color: '#409EFF' }
+      }]
+    });
+
+    // ================================================================
+    //  Chart 2 — 各班成绩等级分布 (堆叠柱状图)
+    // ================================================================
+    initChart('chart-gradeStack', {
+      title: { text: '各班成绩等级分布（堆叠对比）', left: 'center' },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { bottom: 0, left: 'center' },
+      grid: { left: '8%', right: '5%', bottom: '16%', top: '16%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: ['高一(1)班','高一(2)班','高一(3)班','高一(4)班','高一(5)班'],
+        name: '班级', nameLocation: 'center', nameGap: 28,
+        axisLabel: { interval: 0, rotate: 15 },
+        axisLine: { lineStyle: { color: '#333' } }
+      },
+      yAxis: {
+        type: 'value', name: '人数', nameLocation: 'center', nameGap: 36,
+        axisLine: { lineStyle: { color: '#333' } },
+        splitLine: { lineStyle: { color: '#e0e0e0', width: 0.5 } }
+      },
+      color: ['#5470C6','#91CC75','#FAC858','#EE6666','#999999'],
+      series: [
+        { name: 'A(90-100)', type: 'bar', stack: 'total', data: [8,10,6,12,9] },
+        { name: 'B(80-89)',  type: 'bar', stack: 'total', data: [14,16,13,15,16] },
+        { name: 'C(70-79)',  type: 'bar', stack: 'total', data: [10,8,12,7,8] },
+        { name: 'D(60-69)',  type: 'bar', stack: 'total', data: [4,3,5,2,3] },
+        { name: 'E(<60)',    type: 'bar', stack: 'total', data: [2,1,2,1,1] }
+      ]
+    });
+
+    // ================================================================
+    //  Chart 3 — 全年级成绩评级占比 (环形图)
+    // ================================================================
+    initChart('chart-gradeDonut', {
+      title: { text: '全年级成绩评级占比', left: 'center' },
+      legend: { right: 10, top: 'center', orient: 'vertical' },
+      tooltip: { formatter: '{b}: {d}%' },
+      series: [{
+        type: 'pie', radius: ['45%','68%'], center: ['40%','55%'],
+        label: { show: true, formatter: '{b}：{c}人' },
+        data: [
+          { value: 45, name: '优秀(90-100)' },
+          { value: 68, name: '良好(80-89)' },
+          { value: 52, name: '中等(70-79)' },
+          { value: 20, name: '及格(60-69)' },
+          { value: 7, name: '不及格(<60)' }
+        ]
+      }]
+    });
+
+    // ================================================================
+    //  Chart 4 — 学生成绩变化趋势 (折线面积图)
+    // ================================================================
+    initChart('chart-studentTrend', {
+      title: { text: '学生成绩变化趋势（示例：张同学总分）', left: 'center' },
+      tooltip: { trigger: 'axis' },
+      grid: { left: '8%', right: '5%', bottom: '6%', top: '14%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: ['月考1','月考2','月考3','月考4','期中','月考5','月考6','期末'],
+        name: '考试', nameLocation: 'center', nameGap: 28,
+        axisLabel: { interval: 0, rotate: 15 },
+        axisLine: { lineStyle: { color: '#333' } }
+      },
+      yAxis: {
+        type: 'value', name: '总分（100分制）', nameLocation: 'center', nameGap: 50,
+        min: 60, max: 95,
+        axisLine: { lineStyle: { color: '#333' } },
+        splitLine: { lineStyle: { color: '#e0e0e0', width: 0.5 } }
+      },
+      series: [{
+        name: '总分', type: 'line',
+        data: [71, 74, 69, 78, 82, 80, 86, 88],
+        areaStyle: { color: 'rgba(64,158,255,0.2)' },
+        smooth: true, symbolSize: 8,
+        lineStyle: { color: '#409EFF', width: 2 },
+        itemStyle: { color: '#409EFF' },
+        label: { show: true, position: 'top' }
+      }]
+    });
+
+    // ================================================================
+    //  Chart 5 — 人员性别比例 (饼图)
+    // ================================================================
+    initChart('chart-genderRatio', {
+      title: { text: '人员性别比例（全年级）', left: 'center' },
+      legend: { right: 10, top: 'center', orient: 'vertical' },
+      tooltip: { formatter: '{b}: {c}人（{d}%）' },
+      series: [{
+        type: 'pie', radius: '60%', center: ['40%','55%'],
+        label: { show: true, formatter: '{b}：{c}人' },
+        data: [
+          { value: 92, name: '男', itemStyle: { color: '#409EFF' } },
+          { value: 100, name: '女', itemStyle: { color: '#F56C6C' } }
+        ]
+      }]
+    });
+
+    // ================================================================
+    //  Chart 6 — 学业达标率 (仪表盘)
+    // ================================================================
+    initChart('chart-passGauge', {
+      title: { text: '学业达标率（60分及以上）', left: 'center' },
+      tooltip: { formatter: '{b} : {c}%' },
+      series: [{
+        name: '达标率', type: 'gauge', radius: '90%',
+        center: ['50%','58%'],
+        detail: { formatter: '{value}%', fontSize: 28, offsetCenter: [0,'40%'] },
+        axisLine: { lineStyle: { color: [[0.3,'#F56C6C'],[0.7,'#FAC858'],[1,'#67C23A']], width: 20 } },
+        data: [{ value: 86, name: '达标率' }]
+      }]
+    });
+
+    // ================================================================
+    //  Chart 7 — 学科平均分对比 (柱状+折线组合图)
+    // ================================================================
+    initChart('chart-subjectAvg', {
+      title: { text: '学科平均分对比（本班 vs 年级）', left: 'center' },
+      legend: { right: 10, top: 0 },
+      tooltip: { trigger: 'axis' },
+      grid: { left: '5%', right: '5%', bottom: '5%', top: '16%', containLabel: true },
+      xAxis: {
+        type: 'category', data: ['语文','数学','英语','物理','化学','生物'],
+        name: '学科', nameLocation: 'center', nameGap: 28,
+        axisLabel: { interval: 0 },
+        axisLine: { lineStyle: { color: '#333' } }
+      },
+      yAxis: {
+        type: 'value', name: '平均分', nameLocation: 'center', nameGap: 42,
+        min: 60, max: 90,
+        axisLine: { lineStyle: { color: '#333' } },
+        splitLine: { lineStyle: { color: '#e0e0e0', width: 0.5 } }
+      },
+      series: [
+        {
+          name: '本班平均分', type: 'bar', barWidth: 24,
+          data: [79.2,81.5,77.6,74.3,72.8,76.1],
+          label: { show: true, position: 'top', fontSize: 11 },
+          itemStyle: { color: '#409EFF' }
+        },
+        {
+          name: '年级平均分', type: 'line', smooth: true, symbolSize: 8,
+          data: [77.0,79.4,76.2,73.1,71.5,74.6],
+          lineStyle: { color: '#F56C6C', width: 2 },
+          itemStyle: { color: '#F56C6C' },
+          label: { show: true, position: 'bottom', fontSize: 11 }
+        }
+      ]
+    });
+
+    // ================================================================
+    //  Chart 8 — 学生多科目能力评估 (雷达图)
+    // ================================================================
+    initChart('chart-abilityRadar', {
+      title: { text: '学生多科目能力评估（雷达图）', left: 'center' },
+      legend: { right: 10, top: 0, data: ['张同学','年级平均'] },
+      radar: {
+        center: ['50%','58%'],
+        indicator: [
+          { name: '语文', max: 100 }, { name: '数学', max: 100 },
+          { name: '英语', max: 100 }, { name: '物理', max: 100 },
+          { name: '化学', max: 100 }, { name: '生物', max: 100 }
+        ],
+        axisName: { color: '#333' },
+        axisLine: { lineStyle: { color: '#ccc' } },
+        splitLine: { lineStyle: { color: '#ccc' } },
+        splitArea: { areaStyle: { color: ['#fff','rgb(246,248,252)'] } }
+      },
+      series: [{
+        name: '能力评估', type: 'radar',
+        data: [
+          { value: [84,90,78,76,73,81], name: '张同学',
+            areaStyle: { color: 'rgba(64,158,255,0.25)' },
+            lineStyle: { color: '#409EFF' }, itemStyle: { color: '#409EFF' } },
+          { value: [79,82,76,74,72,75], name: '年级平均',
+            areaStyle: { color: 'rgba(245,108,108,0.2)' },
+            lineStyle: { color: '#F56C6C' }, itemStyle: { color: '#F56C6C' } }
+        ]
+      }]
+    });
+
+    // ================================================================
+    //  Global resize handler
+    // ================================================================
+    window.addEventListener('resize', function() {
+      Object.keys(charts).forEach(function(key) {
+        if (charts[key] && !charts[key].isDisposed()) {
+          charts[key].resize();
+        }
+      });
+    });
+
+    console.log('✅ 学生成绩数据可视化分析系统已就绪 — 8 个图表初始化完成');
+
+  })();
+  </script>
+
+</body>
+</html>
